@@ -52,6 +52,8 @@ type GenerativeTile = {
   type: TileType,
   seed: GameSeed,
   position: Point,
+
+  // needs to take in all adjacent tiles in order to generate another one.
   topTile: () => GenerativeTile,
   bottomTile: () => GenerativeTile,
   leftTile: () => GenerativeTile,
@@ -59,43 +61,41 @@ type GenerativeTile = {
   asTile: () => Tile
 };
 
+// we have some assumptions on how the level must be generated. We should add tests that enforce those assumptions and document them.
 class Level {
   _tileCache: TileCache,
 
   constructor(seed: GameSeed, viewport: Viewport) {
     this._seed = seed;
-
-    this._generateFirstScreen(viewport);
+    this._placeFirstTile(seed);
   }
 
-  getTile(viewport: Viewport, position: Point): Tile {
+  getTiles(viewport: Viewport): Tile {
+    // instead of the prior algorithm
+    // lets get all the tiles required to fill the viewport. For tiles that do not exist
+    // we'll return "UngeneratedTiles" which will know of their neighbors
+    // and which we can then generate into real tiles.
+    // since the player can move in random patterns, we need a quad tree to save tiles.
+    // https://github.com/timohausmann/quadtree-js
+
     const tile = this._tileCache.getTile(point);
     if (tile != null) {
       return tile;
     }
 
-    const adjacentTile = this._tileCache.getAdjacentTile(point);
-    if (adjacentTile == null) {
-      throw new Error('You are trying to generate tiles non-conitguously');
-    }
-
-    const generativeAdjacentTIle = GenerativeTile.from(adjacentTile);
-    const generativeTile = generativeAdjacentTile.generateNeighbor(position);
-
-    const strip = generativeTile.generateVerticalStrip(viewport);
-
-    this._tileCache.addStrip(strip.map(gt => gt.asTile()));
-
+    this._generateNewTilesAndCache(position);
     return this._tileCache.getTileX(point);
   }
 
-  _generateFirstScreen(): void {
-    
+  _generateNewTilesAndCache(viewport: Viewport, point: Point): void {
+    // We have to have an existing tile from which to begin generation
+    const startingTile = this._getStartingTile(viewport, point);
+
+    // now we can generate outward from the starting tile to fill the viewport
   }
 }
 
-// Tile cache is a contiguous square of tiles. We don't allow gaps.
-// A tile block is a set of tile strips
+// or just use a quad tree instead?
 class TileCache {
   _position: Point,
   _width: number,
